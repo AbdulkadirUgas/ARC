@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARC Dataset Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .arc-grid { display: grid; gap: 1px; background-color: #e5e7eb; border: 1px solid #e5e7eb; }
+        .arc-cell { width: 18px; height: 18px; }
+        /* Scrollbar for sidebar */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
+
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <span class="bg-indigo-600 text-white px-2 rounded">ARC</span> Explorer
+            </h1>
+            {% if selected_concept %}
+                <span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium border border-indigo-100">
+                    Filter: {{ selected_concept }}
+                </span>
+                <a href="/" class="text-xs text-slate-400 hover:text-red-500">Clear</a>
+            {% endif %}
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <a href="/?page={{ page - 1 }}&per_page={{ per_page }}&concept={{ selected_concept or '' }}" 
+               class="px-3 py-1 border rounded hover:bg-slate-50 {% if page <= 1 %}pointer-events-none opacity-50{% endif %}">
+               &larr; Prev
+            </a>
+            <span class="text-sm font-mono text-slate-500">Page {{ page }}</span>
+            <a href="/?page={{ page + 1 }}&per_page={{ per_page }}&concept={{ selected_concept or '' }}" 
+               class="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 {% if not has_next %}pointer-events-none opacity-50{% endif %}">
+               Next &rarr;
+            </a>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <aside class="w-64 bg-white border-r border-slate-200 overflow-y-auto hidden md:block">
+            <div class="p-4 border-b border-slate-100 bg-slate-50">
+                <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wide">Filter by Concept</h3>
+            </div>
+            <div class="p-2">
+                <a href="/" class="block px-3 py-2 rounded text-sm mb-1 {% if not selected_concept %}bg-slate-100 font-bold{% else %}hover:bg-slate-50{% endif %}">
+                    All Tasks
+                </a>
+                {% for concept, count in concepts.items() %}
+                <a href="/?concept={{ concept }}" 
+                   class="flex justify-between items-center px-3 py-2 rounded text-sm mb-1 transition-colors
+                          {% if selected_concept == concept %}bg-indigo-50 text-indigo-700 font-bold border border-indigo-100{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                    <span>{{ concept }}</span>
+                    <span class="text-xs bg-slate-100 text-slate-400 px-1.5 rounded-full">{{ count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-6">
+            {% if tasks|length == 0 %}
+                <div class="text-center py-20">
+                    <h2 class="text-2xl font-bold text-slate-300">No tasks found</h2>
+                    <p class="text-slate-400">Try changing the filter or page.</p>
+                </div>
+            {% endif %}
+
+            <div class="space-y-6">
+                {% macro render_grid(grid) %}
+                <div class="arc-grid" style="grid-template-columns: repeat({{ grid[0]|length }}, minmax(0, 1fr));">
+                    {% for row in grid %}
+                        {% for cell_val in row %}
+                        <div class="arc-cell" style="background-color: {{ colors[cell_val] }};"></div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                {% endmacro %}
+
+                {% for task, tid in tasks %}
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <span class="text-xs font-mono text-slate-400">#{{ tid }}</span>
+                            {% if task.meta and task.meta.concept %}
+                                <span class="ml-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{{ task.meta.concept }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-sm">
+                            <a href="/task?id={{ tid }}" class="text-indigo-600 hover:underline">Open</a>
+                        </div>
+                    </div>
+
+                    <a href="/task?id={{ tid }}" class="block no-underline text-inherit">
+                    <div class="overflow-x-auto pb-2">
+                        <div class="flex gap-8 min-w-max">
+                            <div class="flex gap-3 border-r border-slate-100 pr-4">
+                                {% for pair in task.train %}
+                                    <div class="flex items-center gap-1">
+                                        {{ render_grid(pair.input) }}
+                                        <span class="text-slate-300 text-xs">&rarr;</span>
+                                        {{ render_grid(pair.output) }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="flex gap-3 bg-indigo-50/20 p-2 rounded">
+                                {% for pair in task.test %}
+                                    <div class="flex items-center gap-1">
+                                        {{ render_grid(pair.input) }}
+                                        <span class="text-indigo-300 text-xs">&rarr;</span>
+                                        {% if pair.output %}
+                                            {{ render_grid(pair.output) }}
+                                        {% else %}
+                                            <div class="w-8 h-8 flex items-center justify-center border border-dashed border-slate-300 rounded text-slate-300 text-[10px]">?</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="mt-8 flex justify-center gap-2">
+                 <a href="/?page={{ page - 1 }}&per_page={{ per_page }}&concept={{ selected_concept or '' }}" 
+                   class="px-4 py-2 bg-white border rounded hover:bg-slate-50 shadow-sm {% if page <= 1 %}hidden{% endif %}">
+                   Previous Page
+                </a>
+                <a href="/?page={{ page + 1 }}&per_page={{ per_page }}&concept={{ selected_concept or '' }}" 
+                   class="px-4 py-2 bg-white border rounded hover:bg-slate-50 shadow-sm {% if not has_next %}hidden{% endif %}">
+                   Next Page
+                </a>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

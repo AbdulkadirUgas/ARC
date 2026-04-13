@@ -1,0 +1,27 @@
+.DS_Store
+*.log
+*.env
+!.env-example
+
+.ruff_cache/
+.mypy_cache/
+**/__pycache__/
+
+# IDE settings
+.vscode/
+
+# ignore ARC3-solution directories
+ARC3-solution/
+arc-agi-3-agents/
+
+venv/
+env/
+arc_solver/examples/
+arc_solver/examples/arc-factory/new_dataset.jsonl
+arc-factory/dataset/
+arc_visualizer/data.jsonl
+arc_visualizer/dataset.jsonl
+arc_visualizer/new_dataset.jsonl
+
+*.jsonl
+*.json

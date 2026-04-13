@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Detail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .arc-grid { display: grid; gap: 1px; background-color: #e5e7eb; border: 1px solid #e5e7eb; }
+        .arc-cell { width: 18px; height: 18px; }
+        .mismatch { outline: 2px solid #ef4444; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+    <div class="max-w-6xl mx-auto p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-xl font-bold">Task #{{ task_number }}</h1>
+            <a href="/" class="text-sm text-indigo-600">Back</a>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow-sm mb-6">
+            <h2 class="font-bold mb-2">Train pairs</h2>
+            <div class="flex gap-4 overflow-x-auto">
+                {% macro render_grid(grid, highlight=None) -%}
+                <div class="arc-grid" style="grid-template-columns: repeat({{ grid[0]|length }}, minmax(0, 1fr));">
+                    {% for r in range(grid|length) %}
+                        {% set row = grid[r] %}
+                        {% for c in range(row|length) %}
+                            {% set cell_val = row[c] %}
+                            {% set cls = '' %}
+                            {% if highlight and [r, c] in highlight %}
+                                {% set cls = 'mismatch' %}
+                            {% endif %}
+                            <div class="arc-cell {{ cls }}" style="background-color: {{ colors[cell_val] }};"></div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                {%- endmacro %}
+
+                {% for pair in task.train %}
+                <div class="flex items-center gap-2">
+                    {{ render_grid(pair.input) }}
+                    <span class="text-slate-300">→</span>
+                    {{ render_grid(pair.output) }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow-sm mb-6">
+            <h2 class="font-bold mb-2">Test pairs</h2>
+            <div class="space-y-4">
+                {% for pair in task.test %}
+                <div class="flex items-start gap-4">
+                    <div>
+                        <div class="text-xs text-slate-400">Test #{{ loop.index0 }}</div>
+                        {{ render_grid(pair.input) }}
+                    </div>
+                    <div>
+                        <button type="button" onclick="toggleOutput({{ loop.index0 }})" class="px-2 py-1 bg-slate-100 rounded text-sm">Toggle Output</button>
+                        <div id="output-{{ loop.index0 }}" style="display: none; margin-top:8px;">
+                            {% if pair.output %}
+                                {{ render_grid(pair.output) }}
+                            {% else %}
+                                <div class="w-32 h-16 flex items-center justify-center text-slate-400">No output</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded shadow-sm mb-6">
+            <h2 class="font-bold mb-2">Make an attempt</h2>
+            <form method="post">
+                <div class="mb-2">
+                    <label class="text-sm text-slate-600">Select test</label>
+                    <select name="test_index" class="mt-1 p-2 border rounded">
+                        {% for pair in task.test %}
+                        <option value="{{ loop.index0 }}" {% if test_index == loop.index0 %}selected{% endif %}>Test {{ loop.index0 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="text-sm text-slate-600">Grid shape</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <label class="text-xs">Rows <input id="grid-rows" type="number" min="1" value="{{ (task.test[test_index].output|length) if task.test and task.test[test_index].output else 6 }}" class="w-20 p-1 border rounded text-sm"></label>
+                        <label class="text-xs">Cols <input id="grid-cols" type="number" min="1" value="{{ (task.test[test_index].output[0]|length) if task.test and task.test[test_index].output else 6 }}" class="w-20 p-1 border rounded text-sm"></label>
+                        <button type="button" onclick="buildEditor()" class="px-2 py-1 bg-slate-100 rounded text-sm">Create Grid</button>
+                        <button type="button" onclick="clearEditor()" class="px-2 py-1 bg-slate-100 rounded text-sm">Clear</button>
+                        <button type="button" onclick="copyInputToEditor()" class="px-2 py-1 bg-slate-100 rounded text-sm">Copy Input to Editor</button>
+                        <button type="button" onclick="fillEditorWithExpected()" class="px-2 py-1 bg-slate-100 rounded text-sm">Load Expected</button>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="text-sm text-slate-600">Palette (click to select color)</label>
+                    <div id="palette" class="flex gap-2 mt-2">
+                        {% for k, v in colors.items() %}
+                        <button type="button" class="color-swatch p-1 rounded border" data-val="{{ k }}" title="{{ k }}" style="background: {{ v }}; width:28px; height:28px;"></button>
+                        {% endfor %}
+                        <button type="button" class="p-1 rounded border" onclick="setPaint(0)">Eraser</button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="text-sm text-slate-600">Editor</label>
+                    <div id="editor" class="mt-2"></div>
+                </div>
+
+                <input type="hidden" name="attempt" id="attempt-input">
+
+                <div class="flex gap-2">
+                    <button type="submit" onclick="prepareSubmit()" class="px-4 py-2 bg-indigo-600 text-white rounded">Submit attempt</button>
+                </div>
+            </form>
+
+            {% if result %}
+            <div class="mt-4 p-3 rounded border {% if result.ok %}bg-emerald-50 border-emerald-200 text-emerald-700{% else %}bg-rose-50 border-rose-200 text-rose-700{% endif %}">
+                {% if result.error %}
+                    <div>{{ result.error }}</div>
+                {% else %}
+                    <div>Match: {{ result.ok }}</div>
+                    <div>Mismatch count: {{ result.mismatch_count }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if user_grid %}
+            <div class="mt-4">
+                <h3 class="font-bold mb-2">Your grid (mismatches highlighted)</h3>
+                {{ render_grid(user_grid, mismatches) }}
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <script>
+        // expose test pairs to JS
+        const allTests = {{ task.test | tojson }};
+        function toggleOutput(i){
+            const el = document.getElementById('output-'+i);
+            if(!el) return;
+            el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+        }
+
+        // Interactive editor state
+        let paintColor = 1;
+        let editorGrid = [];
+
+        function setPaint(v){
+            paintColor = parseInt(v);
+            // highlight selected swatch
+            document.querySelectorAll('#palette .selected').forEach(el=>el.classList.remove('selected'));
+            const btn = document.querySelector('#palette [data-val="'+v+'"]');
+            if(btn) btn.classList.add('selected');
+        }
+
+        function buildEditor(){
+            const rows = parseInt(document.getElementById('grid-rows').value) || 1;
+            const cols = parseInt(document.getElementById('grid-cols').value) || 1;
+            editorGrid = Array.from({length: rows}, ()=> Array.from({length: cols}, ()=> 0));
+            renderEditor();
+        }
+
+        function clearEditor(){
+            for(let r=0;r<editorGrid.length;r++) for(let c=0;c<editorGrid[r].length;c++) editorGrid[r][c]=0;
+            renderEditor();
+        }
+
+        function fillEditorWithExpected(){
+            const sel = document.querySelector('select[name="test_index"]');
+            const idx = parseInt(sel ? sel.value : 0) || 0;
+            const expected = (allTests && allTests[idx] && allTests[idx].output) ? allTests[idx].output : null;
+            if(!expected){ buildEditor(); return; }
+            editorGrid = JSON.parse(JSON.stringify(expected));
+            document.getElementById('grid-rows').value = editorGrid.length;
+            document.getElementById('grid-cols').value = editorGrid[0].length;
+            renderEditor();
+        }
+
+        function copyInputToEditor(){
+            const sel = document.querySelector('select[name="test_index"]');
+            const idx = parseInt(sel ? sel.value : 0) || 0;
+            const input = (allTests && allTests[idx] && allTests[idx].input) ? allTests[idx].input : null;
+            if(!input){ return; }
+            editorGrid = JSON.parse(JSON.stringify(input));
+            document.getElementById('grid-rows').value = editorGrid.length;
+            document.getElementById('grid-cols').value = editorGrid[0].length;
+            renderEditor();
+        }
+
+        function renderEditor(){
+            const container = document.getElementById('editor');
+            container.innerHTML = '';
+            const rows = editorGrid.length;
+            const cols = editorGrid[0].length;
+            const grid = document.createElement('div');
+            grid.className = 'arc-grid';
+            grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+            grid.style.width = (cols*20) + 'px';
+            for(let r=0;r<rows;r++){
+                for(let c=0;c<cols;c++){
+                    const val = editorGrid[r][c];
+                    const cell = document.createElement('div');
+                    cell.className = 'arc-cell';
+                    cell.style.backgroundColor = '{{ colors[0] }}';
+                    // find color mapping
+                    const colorMap = {
+                        {% for k,v in colors.items() %}
+                        {{ k }}: '{{ v }}',{% endfor %}
+                    };
+                    if(colorMap[val] !== undefined) cell.style.backgroundColor = colorMap[val];
+                    cell.dataset.r = r; cell.dataset.c = c;
+                    cell.style.cursor = 'pointer';
+                    cell.addEventListener('click', ()=>{
+                        editorGrid[r][c] = paintColor;
+                        cell.style.backgroundColor = colorMap[paintColor] || colorMap[0];
+                    });
+                    grid.appendChild(cell);
+                }
+            }
+            container.appendChild(grid);
+        }
+
+        function prepareSubmit(){
+            // ensure editor exists
+            if(!editorGrid || !editorGrid.length) buildEditor();
+            document.getElementById('attempt-input').value = JSON.stringify(editorGrid);
+        }
+
+        // init palette clicks
+        document.addEventListener('DOMContentLoaded', ()=>{
+            document.querySelectorAll('#palette [data-val]').forEach(btn=>{
+                btn.addEventListener('click', ()=>{
+                    setPaint(btn.getAttribute('data-val'));
+                });
+            });
+            // set initial paint
+            setTimeout(()=>{
+                const first = document.querySelector('#palette [data-val]');
+                if(first) setPaint(first.getAttribute('data-val'));
+                // initialize editor with the test input by default
+                copyInputToEditor();
+            }, 30);
+        });
+
+        // AJAX submit: compare without reloading
+        async function submitAjax(e){
+            if(e && e.preventDefault) e.preventDefault();
+            prepareSubmit();
+            const payload = {
+                id: {{ task_abs_id if task_abs_id else 'null' }},
+                test_index: parseInt(document.querySelector('select[name="test_index"]').value || 0),
+                attempt: editorGrid
+            };
+
+            const resp = await fetch('/task/compare', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            let data = null;
+            try{ data = await resp.json(); } catch(err){ data = { ok: false, error: 'Invalid server response' }; }
+
+            // show result
+            let resArea = document.getElementById('ajax-result');
+            if(!resArea){
+                resArea = document.createElement('div');
+                resArea.id = 'ajax-result';
+                document.querySelector('form').appendChild(resArea);
+            }
+            if(data.error) {
+                resArea.innerHTML = `<div class="mt-4 p-3 rounded border bg-rose-50 border-rose-200 text-rose-700">${data.error}</div>`;
+            } else {
+                resArea.innerHTML = `<div class="mt-4 p-3 rounded border ${data.ok? 'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}">Match: ${data.ok}<br> Mismatches: ${data.mismatch_count || 0}</div>`;
+            }
+
+            // highlight mismatches in editor
+            document.querySelectorAll('#editor .arc-cell').forEach(el=>el.classList.remove('mismatch'));
+            if(data && data.mismatches){
+                data.mismatches.forEach(([r,c])=>{
+                    const rows = document.querySelectorAll('#editor .arc-grid > .arc-cell');
+                    // compute index: r*cols + c
+                    const cols = editorGrid[0].length;
+                    const idx = r*cols + c;
+                    const el = document.querySelectorAll('#editor .arc-grid > .arc-cell')[idx];
+                    if(el) el.classList.add('mismatch');
+                });
+            }
+        }
+    </script>
+</body>
+</html>
