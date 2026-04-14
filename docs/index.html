@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARC Split And Baseline Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f0e7;
+      --bg-accent: radial-gradient(circle at top left, rgba(29, 122, 116, 0.13), transparent 32%), radial-gradient(circle at top right, rgba(205, 92, 63, 0.12), transparent 28%), linear-gradient(180deg, #f9f5ed 0%, #f4f0e7 100%);
+      --panel: rgba(255,255,255,0.84);
+      --line: rgba(26, 33, 28, 0.11);
+      --ink: #1f2922;
+      --muted: #6b7469;
+      --accent: #1d7a74;
+      --solved: #2f8f47;
+      --partial: #d28d24;
+      --structural: #4a72d8;
+      --shadow: 0 16px 44px rgba(25, 31, 27, 0.08);
+      --radius: 18px;
+      --family-crop_subgrid: #0f8c79;
+      --family-crop_foreground_bbox: #33a86f;
+      --family-global_geo_transform: #5167d7;
+      --family-geo_transform_with_color_map: #8f5cf6;
+      --family-tile_repeat: #d47c2e;
+      --family-tile_repeat_color_map: #c94e7c;
+      --family-compositional_or_other: #2d3436;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg-accent);
+      padding: 28px;
+    }
+    .app { max-width: 1480px; margin: 0 auto; display: grid; gap: 20px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .hero, .controls, .section { padding: 24px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(29, 122, 116, 0.1);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 14px 0 12px;
+      font-size: clamp(34px, 5vw, 62px);
+      letter-spacing: -0.045em;
+      line-height: 0.94;
+      max-width: 900px;
+    }
+    .hero-copy {
+      margin: 0;
+      max-width: 980px;
+      font-size: 17px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+    .hero-grid, .summary-grid, .baseline-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .hero-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 22px; }
+    .summary-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .baseline-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .stat, .card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.68);
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .stat .label, .control label, .mini-title, .table th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .stat .value {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.045em;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+    }
+    .control {
+      display: grid;
+      gap: 8px;
+    }
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.96);
+      color: var(--ink);
+      font: inherit;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+    }
+    .section-subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .pill, .chip, .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .pill { text-transform: uppercase; letter-spacing: 0.04em; }
+    .pill.llm_prompt { background: rgba(74,114,216,0.14); color: #3155c5; }
+    .pill.deterministic { background: rgba(47,143,71,0.14); color: #246f39; }
+    .pill.object_program { background: rgba(210,141,36,0.16); color: #9b660d; }
+    .pill.compositional { background: rgba(204,92,63,0.14); color: #aa462d; }
+    .chip { background: rgba(31,41,34,0.06); }
+    .chip strong, .mono {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+    }
+    .status.solved { background: rgba(47,143,71,0.14); color: var(--solved); }
+    .status.partial { background: rgba(210,141,36,0.16); color: var(--partial); }
+    .status.structural { background: rgba(74,114,216,0.14); color: var(--structural); }
+    .status.unsolved { background: rgba(31,41,34,0.08); color: #5f655d; }
+    .baseline-card {
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+    .baseline-card:hover { transform: translateY(-2px); border-color: rgba(29,122,116,0.32); }
+    .baseline-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(29,122,116,0.16); }
+    .baseline-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .baseline-name {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+    .card-row, .chip-wrap {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .scope-line, .body-copy {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .family-bars, .tag-list {
+      display: grid;
+      gap: 10px;
+    }
+    .family-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 58px;
+      gap: 10px;
+      align-items: center;
+      font-size: 14px;
+    }
+    .family-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+    .bar {
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(31,41,34,0.08);
+      display: flex;
+    }
+    .segment { height: 100%; }
+    .segment.solved { background: var(--solved); }
+    .segment.partial { background: var(--partial); }
+    .segment.structural { background: var(--structural); }
+    .segment.unsolved { background: #d7d2c6; }
+    .count {
+      text-align: right;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .findings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .finding-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .table th, .table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    .empty {
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px dashed rgba(31,41,34,0.18);
+      color: var(--muted);
+      background: rgba(255,255,255,0.46);
+    }
+    a { color: var(--accent); }
+    @media (max-width: 980px) {
+      body { padding: 16px; }
+      .controls { position: static; }
+      .family-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel hero">
+      <div class="eyebrow">ARC Split Dashboard</div>
+      <h1>Understand the splits, the weak categories, and the baseline results in one view.</h1>
+      <p class="hero-copy">
+        This is the shareable summary view for the ARC analysis work. It focuses on the dataset split taxonomy, the baseline families we tried, and the key conclusion: easy crop and transform families already show some signal, while hard object-compositional categories remain the main weakness and the main target for future synthetic data and solver work.
+      </p>
+      <div class="hero-grid" id="heroStats"></div>
+    </section>
+
+    <section class="panel controls">
+      <div class="control">
+        <label for="splitSelect">Split</label>
+        <select id="splitSelect"></select>
+      </div>
+      <div class="control">
+        <label for="runSelect">Selected baseline</label>
+        <select id="runSelect"></select>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Main Findings</div>
+          <div class="section-subtitle">What the taxonomy and baseline work tell us right now.</div>
+        </div>
+      </div>
+      <div class="findings">
+        <article class="card">
+          <div class="finding-title">1. The dataset is not one uniform problem.</div>
+          <div class="body-copy">We split ARC into multi-label families instead of forcing one label per task. That lets us separate crop/extract, transform/color-map, tiling, and hard object/compositional reasoning.</div>
+        </article>
+        <article class="card">
+          <div class="finding-title">2. Prompt-only Qwen is not the path forward.</div>
+          <div class="body-copy">Qwen improved output formatting and structure in some runs, but exact evaluation accuracy stayed at zero on the tested categories. The bottleneck is rule recovery, not parsing anymore.</div>
+        </article>
+        <article class="card">
+          <div class="finding-title">3. Easier categories already show some signal.</div>
+          <div class="body-copy">Deterministic and object-lite baselines show non-zero signal on simpler families like crop and basic transform/color-map tasks. That suggests those categories are already relatively richer and less bottlenecked.</div>
+        </article>
+        <article class="card">
+          <div class="finding-title">4. Hard object/compositional categories are the weak region.</div>
+          <div class="body-copy">That is where both the prompt baselines and the current deterministic/compositional baselines break down. It is also the most useful region to target for synthetic data generation and stronger program search.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Split Overview</div>
+          <div class="section-subtitle" id="splitSubtitle"></div>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <article class="card">
+          <div class="finding-title">Primary families</div>
+          <div class="family-bars" id="familyBars"></div>
+        </article>
+        <article class="card">
+          <div class="finding-title">Most common tags</div>
+          <div class="tag-list" id="topTags"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Baseline Runs</div>
+          <div class="section-subtitle">All tracked baselines for the selected split.</div>
+        </div>
+      </div>
+      <div class="baseline-grid" id="baselineGrid"></div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Selected Baseline Breakdown</div>
+          <div class="section-subtitle" id="runSubtitle"></div>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <article class="card">
+          <div class="finding-title">Coverage by primary family</div>
+          <div class="family-bars" id="runFamilies"></div>
+        </article>
+        <article class="card">
+          <div class="finding-title">Weak tags inside this run</div>
+          <div class="tag-list" id="runWeakTags"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">What This Means Next</div>
+          <div class="section-subtitle">Practical recommendation based on the work so far.</div>
+        </div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Current conclusion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Synthetic data</td>
+            <td>Do not generate uniformly across all categories. Target the weak categories, especially hard object/compositional tasks.</td>
+          </tr>
+          <tr>
+            <td>LLM prompting</td>
+            <td>Another round of simple prompt-only testing is unlikely to move the benchmark meaningfully.</td>
+          </tr>
+          <tr>
+            <td>Next solver direction</td>
+            <td>Move toward stronger program/rule search for object-compositional reasoning, with LLMs used only as proposer or reranker if needed.</td>
+          </tr>
+          <tr>
+            <td>Why the taxonomy matters</td>
+            <td>It gives a concrete target map for both synthetic data generation and performance measurement by category rather than a single overall score.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="body-copy">Full local analysis artifacts, including the richer task-level dashboard and build scripts, are preserved in the repo source. This public page is the lightweight summary version for review and sharing.</div>
+    </section>
+  </div>
+
+  <script>
+    let DATA = null;
+    const FAMILY_COLORS = {
+      crop_subgrid: getComputedStyle(document.documentElement).getPropertyValue('--family-crop_subgrid').trim(),
+      crop_foreground_bbox: getComputedStyle(document.documentElement).getPropertyValue('--family-crop_foreground_bbox').trim(),
+      global_geo_transform: getComputedStyle(document.documentElement).getPropertyValue('--family-global_geo_transform').trim(),
+      geo_transform_with_color_map: getComputedStyle(document.documentElement).getPropertyValue('--family-geo_transform_with_color_map').trim(),
+      tile_repeat: getComputedStyle(document.documentElement).getPropertyValue('--family-tile_repeat').trim(),
+      tile_repeat_color_map: getComputedStyle(document.documentElement).getPropertyValue('--family-tile_repeat_color_map').trim(),
+      compositional_or_other: getComputedStyle(document.documentElement).getPropertyValue('--family-compositional_or_other').trim(),
+    };
+
+    const state = {
+      split: 'training',
+      runId: null,
+    };
+
+    const el = {
+      heroStats: document.getElementById('heroStats'),
+      splitSelect: document.getElementById('splitSelect'),
+      runSelect: document.getElementById('runSelect'),
+      splitSubtitle: document.getElementById('splitSubtitle'),
+      familyBars: document.getElementById('familyBars'),
+      topTags: document.getElementById('topTags'),
+      baselineGrid: document.getElementById('baselineGrid'),
+      runSubtitle: document.getElementById('runSubtitle'),
+      runFamilies: document.getElementById('runFamilies'),
+      runWeakTags: document.getElementById('runWeakTags'),
+    };
+
+    function fmt(num) {
+      if (num === null || num === undefined || Number.isNaN(num)) return '—';
+      if (typeof num === 'number' && num % 1 !== 0) return num.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+      return num.toLocaleString();
+    }
+
+    function titleCase(text) {
+      return text.replace(/_/g, ' ');
+    }
+
+    function splitData() {
+      return DATA.splits[state.split];
+    }
+
+    function runsForSplit() {
+      return DATA.runs
+        .filter((run) => run.split === state.split)
+        .sort((a, b) => a.family_order - b.family_order || a.label.localeCompare(b.label));
+    }
+
+    function currentRun() {
+      return runsForSplit().find((run) => run.id === state.runId) || null;
+    }
+
+    function ensureRun() {
+      const runs = runsForSplit();
+      if (!runs.length) {
+        state.runId = null;
+        return;
+      }
+      if (!runs.some((run) => run.id === state.runId)) {
+        state.runId = runs[0].id;
+      }
+    }
+
+    function renderHero() {
+      const totalRuns = DATA.runs.length;
+      const totalTags = Object.keys(splitData().summary.tag_counts).length;
+      el.heroStats.innerHTML = [
+        { label: 'Tasks in split', value: fmt(splitData().summary.num_tasks) },
+        { label: 'Tracked baselines', value: fmt(runsForSplit().length) },
+        { label: 'Primary families', value: fmt(Object.keys(splitData().summary.primary_family_counts).length) },
+        { label: 'Tag types', value: fmt(totalTags) },
+      ].map((item) => `
+        <div class="stat">
+          <div class="label">${item.label}</div>
+          <div class="value">${item.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderControls() {
+      el.splitSelect.innerHTML = Object.keys(DATA.splits).map((split) => `
+        <option value="${split}" ${split === state.split ? 'selected' : ''}>${split}</option>
+      `).join('');
+      const runs = runsForSplit();
+      el.runSelect.innerHTML = runs.map((run) => `
+        <option value="${run.id}" ${run.id === state.runId ? 'selected' : ''}>${run.label}</option>
+      `).join('');
+    }
+
+    function renderSplitOverview() {
+      const summary = splitData().summary;
+      el.splitSubtitle.textContent = `${fmt(summary.num_tasks)} tasks in ${state.split}. These counts come from the multi-label taxonomy used to guide synthetic data targeting.`;
+      const orderedFamilies = DATA.primary_families.filter((family) => summary.primary_family_counts[family]);
+      el.familyBars.innerHTML = orderedFamilies.map((family) => {
+        const count = summary.primary_family_counts[family];
+        return `
+          <div class="family-row">
+            <div class="family-name"><span class="dot" style="background:${FAMILY_COLORS[family] || '#333'}"></span>${titleCase(family)}</div>
+            <div class="bar"><div class="segment solved" style="width:${(count / summary.num_tasks) * 100}%; background:${FAMILY_COLORS[family] || '#333'}"></div></div>
+            <div class="count">${fmt(count)}</div>
+          </div>
+        `;
+      }).join('');
+      const topTags = Object.entries(summary.tag_counts)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 14);
+      el.topTags.innerHTML = topTags.map(([tag, count]) => `
+        <div class="chip"><strong>${fmt(count)}</strong> ${titleCase(tag)}</div>
+      `).join('');
+    }
+
+    function renderBaselineCards() {
+      const runs = runsForSplit();
+      if (!runs.length) {
+        el.baselineGrid.innerHTML = '<div class="empty">No runs attached to this split.</div>';
+        return;
+      }
+      el.baselineGrid.innerHTML = runs.map((run) => {
+        const metricHtml = (run.summary.summary_metrics || []).map((metric) => `
+          <span class="chip"><strong>${fmt(metric.value)}</strong> ${metric.label}</span>
+        `).join('');
+        const statusCounts = run.summary.status_counts || {};
+        const scopeBits = [
+          run.scope.num_tasks_run ? `tasks ${fmt(run.scope.num_tasks_run)}` : null,
+          run.scope.max_tasks ? `slice ${fmt(run.scope.max_tasks)}` : null,
+          run.scope.primary_family ? `family ${titleCase(run.scope.primary_family)}` : null,
+          run.scope.tag ? `tag ${titleCase(run.scope.tag)}` : null,
+        ].filter(Boolean).join(' · ');
+        return `
+          <article class="card baseline-card ${run.id === state.runId ? 'active' : ''}" data-run-id="${run.id}">
+            <div class="baseline-top">
+              <div class="baseline-name">${run.label}</div>
+              <span class="pill ${run.family}">${titleCase(run.family)}</span>
+            </div>
+            <div class="scope-line">${scopeBits || 'full split context'}</div>
+            <div class="card-row">${metricHtml || '<span class="body-copy">No summary metrics.</span>'}</div>
+            <div class="card-row">
+              <span class="status solved">${fmt(statusCounts.solved || 0)} solved</span>
+              <span class="status partial">${fmt(statusCounts.partial || 0)} partial</span>
+              <span class="status structural">${fmt(statusCounts.structural || 0)} structural</span>
+              <span class="status unsolved">${fmt(statusCounts.unsolved || 0)} unsolved</span>
+            </div>
+          </article>
+        `;
+      }).join('');
+      el.baselineGrid.querySelectorAll('[data-run-id]').forEach((node) => {
+        node.addEventListener('click', () => {
+          state.runId = node.dataset.runId;
+          render();
+        });
+      });
+    }
+
+    function renderRunBreakdown() {
+      const run = currentRun();
+      if (!run) {
+        el.runSubtitle.textContent = 'No run selected.';
+        el.runFamilies.innerHTML = '<div class="empty">No run data.</div>';
+        el.runWeakTags.innerHTML = '<div class="empty">No run data.</div>';
+        return;
+      }
+      el.runSubtitle.textContent = `${run.label} · ${titleCase(run.family)} · ${fmt(run.summary.task_coverage)} covered tasks`;
+
+      const familyEntries = Object.entries(run.family_summary || {}).sort((a, b) => {
+        const ai = DATA.primary_families.indexOf(a[0]);
+        const bi = DATA.primary_families.indexOf(b[0]);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+      el.runFamilies.innerHTML = familyEntries.length ? familyEntries.map(([family, stats]) => {
+        const covered = stats.covered || 0;
+        const solved = stats.solved || 0;
+        const partial = stats.partial || 0;
+        const structural = stats.structural || 0;
+        const unsolved = stats.unsolved || Math.max(0, covered - solved - partial - structural);
+        return `
+          <div class="family-row">
+            <div class="family-name"><span class="dot" style="background:${FAMILY_COLORS[family] || '#333'}"></span>${titleCase(family)}</div>
+            <div class="bar">
+              <div class="segment solved" style="width:${covered ? (solved / covered) * 100 : 0}%"></div>
+              <div class="segment partial" style="width:${covered ? (partial / covered) * 100 : 0}%"></div>
+              <div class="segment structural" style="width:${covered ? (structural / covered) * 100 : 0}%"></div>
+              <div class="segment unsolved" style="width:${covered ? (unsolved / covered) * 100 : 0}%"></div>
+            </div>
+            <div class="count">${fmt(covered)}</div>
+          </div>
+        `;
+      }).join('') : '<div class="empty">No family-level breakdown was recorded for this run.</div>';
+
+      const weakTags = Object.entries(run.tag_summary || {})
+        .map(([tag, stats]) => ({ tag, stats, weak: (stats.unsolved || 0) / Math.max(1, stats.covered || 1) }))
+        .filter(({ stats }) => (stats.covered || 0) >= 3)
+        .sort((a, b) => b.weak - a.weak || (b.stats.covered || 0) - (a.stats.covered || 0))
+        .slice(0, 14);
+      el.runWeakTags.innerHTML = weakTags.length ? weakTags.map(({ tag, stats, weak }) => `
+        <div class="chip"><strong>${fmt(stats.covered)}</strong> ${titleCase(tag)} · ${(weak * 100).toFixed(0)}% weak</div>
+      `).join('') : '<div class="empty">Not enough tag coverage in this run to rank weak categories.</div>';
+    }
+
+    function render() {
+      ensureRun();
+      renderHero();
+      renderControls();
+      renderSplitOverview();
+      renderBaselineCards();
+      renderRunBreakdown();
+    }
+
+    async function loadData() {
+      const manifest = await fetch('./publish_manifest.json').then((res) => res.json());
+      const chunks = await Promise.all(
+        manifest.chunks.map((path) => fetch(path).then((res) => res.text()))
+      );
+      DATA = JSON.parse(chunks.join(''));
+    }
+
+    async function init() {
+      await loadData();
+
+      el.splitSelect.addEventListener('change', (event) => {
+        state.split = event.target.value;
+        state.runId = null;
+        render();
+      });
+      el.runSelect.addEventListener('change', (event) => {
+        state.runId = event.target.value;
+        render();
+      });
+
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -23,3 +23,9 @@ the ARC-AGI (Abstract Reasoning Challenge) through a structured reasoning loop:
         └─ FAILURE → [REFINE] & retry (max 5 times)
         ↓
     OUTPUT SOLUTION
+
+## Current Analysis Deliverables
+
+- `FINDINGS.md` summarizes the current ARC split and baseline conclusions.
+- `docs/index.html` is the lightweight dashboard intended for GitHub Pages.
+- The dashboard focuses on taxonomy splits, baseline families, and the main conclusion that hard object/compositional categories remain the weak region.

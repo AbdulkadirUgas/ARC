@@ -1,27 +1,10 @@
 .DS_Store
-*.log
-*.env
-!.env-example
+__pycache__/
+*.pyc
 
-.ruff_cache/
-.mypy_cache/
-**/__pycache__/
+# Large local artifacts and experiment outputs
+local_runs/
 
-# IDE settings
-.vscode/
-
-# ignore ARC3-solution directories
-ARC3-solution/
-arc-agi-3-agents/
-
-venv/
-env/
-arc_solver/examples/
-arc_solver/examples/arc-factory/new_dataset.jsonl
-arc-factory/dataset/
-arc_visualizer/data.jsonl
-arc_visualizer/dataset.jsonl
-arc_visualizer/new_dataset.jsonl
-
-*.jsonl
-*.json
+# Generated dashboard source data can be rebuilt; publish the docs copy instead
+analysis/task_dashboard/dashboard_data.js
+analysis/task_dashboard/dashboard_data.json
