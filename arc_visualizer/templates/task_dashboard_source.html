@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARC Task Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f3f0e8;
+      --bg-accent: radial-gradient(circle at top left, rgba(38, 126, 123, 0.14), transparent 34%), radial-gradient(circle at top right, rgba(216, 91, 55, 0.12), transparent 28%), linear-gradient(180deg, #f8f5ed 0%, #f3f0e8 100%);
+      --panel: rgba(255, 255, 255, 0.86);
+      --panel-solid: #ffffff;
+      --ink: #1f2a21;
+      --muted: #687166;
+      --line: rgba(31, 42, 33, 0.12);
+      --accent: #1d7a74;
+      --accent-soft: rgba(29, 122, 116, 0.1);
+      --warning: #d28d24;
+      --danger: #cc5c3f;
+      --structural: #4a72d8;
+      --solved: #2f8f47;
+      --partial: #d28d24;
+      --unsolved: #d3d0c7;
+      --shadow: 0 16px 40px rgba(23, 31, 25, 0.08);
+      --radius: 18px;
+      --family-crop_subgrid: #0f8c79;
+      --family-crop_foreground_bbox: #33a86f;
+      --family-global_geo_transform: #5167d7;
+      --family-geo_transform_with_color_map: #8f5cf6;
+      --family-tile_repeat: #d47c2e;
+      --family-tile_repeat_color_map: #c94e7c;
+      --family-compositional_or_other: #2d3436;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg-accent);
+      padding: 28px;
+    }
+
+    .app { max-width: 1520px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    .hero, .controls, .section, .detail-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero { padding: 28px; display: grid; gap: 18px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      background: var(--accent-soft);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+    h1 { margin: 0; font-size: clamp(32px, 5vw, 58px); line-height: 0.95; letter-spacing: -0.04em; }
+    .hero p { margin: 0; max-width: 980px; font-size: 17px; line-height: 1.6; color: var(--muted); }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .hero-stat {
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      min-height: 92px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .hero-stat .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .hero-stat .value { font-size: 28px; font-weight: 700; letter-spacing: -0.04em; }
+
+    .controls {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+    }
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .control label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .control select {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      background: var(--panel-solid);
+      font: inherit;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .section { padding: 22px; display: grid; gap: 18px; }
+    .section-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+    .section-title { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+    .section-subtitle { color: var(--muted); font-size: 14px; }
+
+    .summary-grid, .baseline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .summary-card, .baseline-card {
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.7);
+      padding: 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .baseline-card {
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .baseline-card:hover { transform: translateY(-2px); border-color: rgba(29,122,116,0.35); }
+    .baseline-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(29,122,116,0.18); }
+    .baseline-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .baseline-name { font-size: 18px; font-weight: 700; line-height: 1.15; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .pill.llm_prompt { background: rgba(74, 114, 216, 0.14); color: #3055c5; }
+    .pill.deterministic { background: rgba(47, 143, 71, 0.14); color: #246f39; }
+    .pill.object_program { background: rgba(210, 141, 36, 0.16); color: #9b660d; }
+    .pill.compositional { background: rgba(204, 92, 63, 0.14); color: #aa462d; }
+    .pill.other { background: rgba(45, 52, 54, 0.12); color: #2d3436; }
+
+    .metric-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .metric-chip, .tag-chip {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: rgba(31,42,33,0.06);
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metric-chip strong, .tag-chip strong { font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+    .scope-line { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .status-stack { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-solved { background: rgba(47, 143, 71, 0.14); color: var(--solved); }
+    .status-partial { background: rgba(210, 141, 36, 0.16); color: var(--partial); }
+    .status-structural { background: rgba(74, 114, 216, 0.14); color: var(--structural); }
+    .status-unsolved { background: rgba(31,42,33,0.08); color: #5f655d; }
+
+    .family-bars, .weak-tag-list { display: grid; gap: 10px; }
+    .family-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 56px;
+      gap: 10px;
+      align-items: center;
+      font-size: 14px;
+    }
+    .family-name { display: inline-flex; align-items: center; gap: 8px; }
+    .family-dot {
+      width: 11px; height: 11px; border-radius: 999px;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+    .family-bar {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(31,42,33,0.08);
+      overflow: hidden;
+      display: flex;
+    }
+    .segment { height: 100%; }
+    .segment.solved { background: var(--solved); }
+    .segment.partial { background: var(--partial); }
+    .segment.structural { background: var(--structural); }
+    .segment.unsolved { background: var(--unsolved); }
+    .family-count { text-align: right; color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+
+    .task-groups {
+      display: grid;
+      gap: 16px;
+    }
+    .task-group {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.62);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .task-group-header { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .task-group-title { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .task-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(12px, 12px));
+      gap: 3px;
+      align-content: start;
+    }
+    .task-box {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .task-box:hover, .task-box.active {
+      transform: scale(1.45);
+      box-shadow: 0 0 0 1px rgba(31,42,33,0.22);
+      position: relative;
+      z-index: 3;
+    }
+
+    .detail-panel { padding: 22px; display: none; gap: 18px; }
+    .detail-panel.visible { display: grid; }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) minmax(320px, 1fr);
+      gap: 18px;
+    }
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.72);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+    .detail-title { font-size: 16px; font-weight: 700; }
+    .mono { font-family: "IBM Plex Mono", monospace; }
+    .chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .baseline-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .baseline-table th, .baseline-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    .baseline-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .baseline-table tr:hover { background: rgba(31,42,33,0.03); }
+
+    .tooltip {
+      position: fixed;
+      z-index: 40;
+      pointer-events: none;
+      display: none;
+      max-width: 300px;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(24, 31, 26, 0.94);
+      color: #f2efe8;
+      font-size: 12px;
+      line-height: 1.45;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+    }
+
+    .muted { color: var(--muted); }
+    .empty-state {
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px dashed rgba(31,42,33,0.18);
+      color: var(--muted);
+      background: rgba(255,255,255,0.44);
+    }
+
+    @media (max-width: 980px) {
+      body { padding: 16px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .family-row { grid-template-columns: 1fr; }
+      .controls { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="eyebrow">ARC Taxonomy + Baseline Viewer</div>
+      <h1>See the splits, the weak categories, and every baseline in one place.</h1>
+      <p>
+        This dashboard turns the ARC taxonomy and all recorded local runs into a single static viewer. You can inspect how the dataset was split, compare the baselines we tried, and click any task to see how each run behaved on that exact task.
+      </p>
+      <div class="hero-grid" id="heroStats"></div>
+    </section>
+
+    <section class="controls">
+      <div class="control">
+        <label for="splitSelect">Split</label>
+        <select id="splitSelect"></select>
+      </div>
+      <div class="control">
+        <label for="runSelect">Selected baseline</label>
+        <select id="runSelect"></select>
+      </div>
+      <div class="control">
+        <label for="taskFilter">Task filter</label>
+        <select id="taskFilter">
+          <option value="all">All tasks in split</option>
+          <option value="covered">Only tasks covered by selected baseline</option>
+          <option value="weak">Only weak tasks for selected baseline</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="tagSelect">Tag focus</label>
+        <select id="tagSelect"></select>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Split Overview</div>
+          <div class="section-subtitle" id="splitSubtitle"></div>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="detail-title">Primary families</div>
+          <div class="family-bars" id="familyBars"></div>
+        </div>
+        <div class="summary-card">
+          <div class="detail-title">Most common tags</div>
+          <div class="weak-tag-list" id="topTags"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Baseline Runs</div>
+          <div class="section-subtitle">Click a card to recolor the task explorer with that run’s status.</div>
+        </div>
+      </div>
+      <div class="baseline-grid" id="baselineGrid"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Selected Baseline Breakdown</div>
+          <div class="section-subtitle" id="runInsightSubtitle"></div>
+        </div>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="detail-title">Coverage by primary family</div>
+          <div class="family-bars" id="runFamilySummary"></div>
+        </div>
+        <div class="summary-card">
+          <div class="detail-title">Weak tags inside this run</div>
+          <div class="weak-tag-list" id="runWeakTags"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Task Explorer</div>
+          <div class="section-subtitle">Grouped by primary family. Box fill shows the selected baseline’s status on each task.</div>
+        </div>
+        <div class="status-stack">
+          <span class="status-badge status-solved">Solved</span>
+          <span class="status-badge status-partial">Train-fit / partial</span>
+          <span class="status-badge status-structural">Structural signal</span>
+          <span class="status-badge status-unsolved">No signal</span>
+        </div>
+      </div>
+      <div class="task-groups" id="taskGroups"></div>
+    </section>
+
+    <section class="detail-panel" id="detailPanel"></section>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script src="./dashboard_data.js"></script>
+  <script>
+    const DATA = window.ARC_DASHBOARD_DATA;
+    const STATUS_COLORS = {
+      solved: '#2f8f47',
+      partial: '#d28d24',
+      structural: '#4a72d8',
+      unsolved: '#d3d0c7',
+      uncovered: '#ece7dc',
+    };
+    const FAMILY_COLORS = {
+      crop_subgrid: getComputedStyle(document.documentElement).getPropertyValue('--family-crop_subgrid').trim(),
+      crop_foreground_bbox: getComputedStyle(document.documentElement).getPropertyValue('--family-crop_foreground_bbox').trim(),
+      global_geo_transform: getComputedStyle(document.documentElement).getPropertyValue('--family-global_geo_transform').trim(),
+      geo_transform_with_color_map: getComputedStyle(document.documentElement).getPropertyValue('--family-geo_transform_with_color_map').trim(),
+      tile_repeat: getComputedStyle(document.documentElement).getPropertyValue('--family-tile_repeat').trim(),
+      tile_repeat_color_map: getComputedStyle(document.documentElement).getPropertyValue('--family-tile_repeat_color_map').trim(),
+      compositional_or_other: getComputedStyle(document.documentElement).getPropertyValue('--family-compositional_or_other').trim(),
+    };
+
+    const state = {
+      split: 'training',
+      runId: null,
+      taskFilter: 'all',
+      tag: 'all',
+      selectedTaskId: null,
+    };
+
+    const elements = {
+      heroStats: document.getElementById('heroStats'),
+      splitSelect: document.getElementById('splitSelect'),
+      runSelect: document.getElementById('runSelect'),
+      taskFilter: document.getElementById('taskFilter'),
+      tagSelect: document.getElementById('tagSelect'),
+      splitSubtitle: document.getElementById('splitSubtitle'),
+      familyBars: document.getElementById('familyBars'),
+      topTags: document.getElementById('topTags'),
+      baselineGrid: document.getElementById('baselineGrid'),
+      runInsightSubtitle: document.getElementById('runInsightSubtitle'),
+      runFamilySummary: document.getElementById('runFamilySummary'),
+      runWeakTags: document.getElementById('runWeakTags'),
+      taskGroups: document.getElementById('taskGroups'),
+      detailPanel: document.getElementById('detailPanel'),
+      tooltip: document.getElementById('tooltip'),
+    };
+
+    function fmt(num) {
+      if (num === null || num === undefined || Number.isNaN(num)) return '—';
+      if (typeof num === 'number' && num % 1 !== 0) return num.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+      return num.toLocaleString();
+    }
+
+    function titleCase(text) {
+      return text.replace(/_/g, ' ');
+    }
+
+    function splitData() {
+      return DATA.splits[state.split];
+    }
+
+    function runsForSplit() {
+      return splitData().run_ids
+        .map((runId) => DATA.runs[runId])
+        .sort((a, b) => a.family_order - b.family_order || a.label.localeCompare(b.label));
+    }
+
+    function currentRun() {
+      return DATA.runs[state.runId] || null;
+    }
+
+    function taskRows() {
+      return splitData().tasks;
+    }
+
+    function ensureSelectedRun() {
+      const runs = runsForSplit();
+      if (!runs.length) {
+        state.runId = null;
+        return;
+      }
+      if (!state.runId || !DATA.runs[state.runId] || DATA.runs[state.runId].split !== state.split) {
+        state.runId = runs[0].id;
+      }
+    }
+
+    function ensureSelectedTag() {
+      const split = splitData();
+      const validTags = new Set([
+        'all',
+        ...Object.keys(split.summary.tag_counts),
+        ...DATA.primary_families,
+      ]);
+      if (!validTags.has(state.tag)) {
+        state.tag = 'all';
+      }
+    }
+
+    function statusForTask(taskId) {
+      const run = currentRun();
+      if (!run) return { status: 'uncovered' };
+      return run.task_statuses[taskId] || { status: 'uncovered' };
+    }
+
+    function filteredTasks() {
+      return taskRows().filter((task) => {
+        const runTask = statusForTask(task.task_id);
+        if (state.taskFilter === 'covered' && runTask.status === 'uncovered') return false;
+        if (state.taskFilter === 'weak' && !['partial', 'structural', 'unsolved'].includes(runTask.status)) return false;
+        if (state.tag !== 'all' && !task.tags.includes(state.tag) && task.primary_family !== state.tag) return false;
+        return true;
+      });
+    }
+
+    function renderHero() {
+      const split = splitData();
+      const runCount = runsForSplit().length;
+      const taskCount = split.summary.num_tasks;
+      const hardCount = (split.summary.tag_counts.hard_object_reasoning || 0) + (split.summary.tag_counts.hard_shape_reasoning || 0);
+      elements.heroStats.innerHTML = [
+        { label: 'Tasks in split', value: fmt(taskCount) },
+        { label: 'Tracked baselines', value: fmt(runCount) },
+        { label: 'Primary families', value: fmt(Object.keys(split.summary.primary_family_counts).length) },
+        { label: 'Hard tags', value: fmt(hardCount) },
+      ].map((item) => `
+        <div class="hero-stat">
+          <div class="label">${item.label}</div>
+          <div class="value">${item.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderSplitControls() {
+      elements.splitSelect.innerHTML = Object.keys(DATA.splits).map((split) => `
+        <option value="${split}" ${split === state.split ? 'selected' : ''}>${split}</option>
+      `).join('');
+
+      const runs = runsForSplit();
+      elements.runSelect.innerHTML = runs.map((run) => `
+        <option value="${run.id}" ${run.id === state.runId ? 'selected' : ''}>${run.label}</option>
+      `).join('');
+
+      const tagCounts = splitData().summary.tag_counts;
+      const tags = [
+        'all',
+        ...Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([tag]) => tag),
+      ];
+      elements.tagSelect.innerHTML = tags.map((tag) => `
+        <option value="${tag}" ${tag === state.tag ? 'selected' : ''}>${tag === 'all' ? 'All families and tags' : titleCase(tag)}</option>
+      `).join('');
+    }
+
+    function renderSplitOverview() {
+      const summary = splitData().summary;
+      elements.splitSubtitle.textContent = `${fmt(summary.num_tasks)} tasks in ${state.split}. Families and tags below come from the multi-label taxonomy, not from a single forced label.`;
+
+      const orderedFamilies = DATA.primary_families
+        .filter((family) => summary.primary_family_counts[family]);
+      elements.familyBars.innerHTML = orderedFamilies.map((family) => {
+        const count = summary.primary_family_counts[family];
+        return `
+        <div class="family-row">
+          <div class="family-name"><span class="family-dot" style="background:${FAMILY_COLORS[family] || '#333'}"></span>${titleCase(family)}</div>
+          <div class="family-bar"><div class="segment solved" style="width:${(count / summary.num_tasks) * 100}% ; background:${FAMILY_COLORS[family] || '#333'}"></div></div>
+          <div class="family-count">${fmt(count)}</div>
+        </div>
+      `;
+      }).join('');
+
+      const topTags = Object.entries(summary.tag_counts)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 14);
+      elements.topTags.innerHTML = topTags.map(([tag, count]) => `
+        <div class="metric-chip"><strong>${fmt(count)}</strong> ${titleCase(tag)}</div>
+      `).join('');
+    }
+
+    function renderBaselineCards() {
+      const runs = runsForSplit();
+      if (!runs.length) {
+        elements.baselineGrid.innerHTML = '<div class="empty-state">No runs are attached to this split yet.</div>';
+        return;
+      }
+      elements.baselineGrid.innerHTML = runs.map((run) => {
+        const statusCounts = run.summary.status_counts || {};
+        const metricHtml = (run.summary.summary_metrics || []).map((metric) => `
+          <span class="metric-chip"><strong>${fmt(metric.value)}</strong> ${metric.label}</span>
+        `).join('');
+        const scope = run.scope || {};
+        const scopeBits = [
+          scope.num_tasks_run ? `tasks ${fmt(scope.num_tasks_run)}` : null,
+          scope.max_tasks ? `slice ${fmt(scope.max_tasks)}` : null,
+          scope.primary_family ? `family ${scope.primary_family}` : null,
+          scope.tag ? `tag ${scope.tag}` : null,
+        ].filter(Boolean);
+
+        return `
+          <article class="baseline-card ${run.id === state.runId ? 'active' : ''}" data-run-id="${run.id}">
+            <div class="baseline-top">
+              <div class="baseline-name">${run.label}</div>
+              <span class="pill ${run.family}">${titleCase(run.family)}</span>
+            </div>
+            <div class="scope-line">${scopeBits.join(' · ') || 'full split context'}</div>
+            <div class="metric-row">${metricHtml || '<span class="muted">No summary metrics.</span>'}</div>
+            <div class="status-stack">
+              <span class="status-badge status-solved">${fmt(statusCounts.solved || 0)} solved</span>
+              <span class="status-badge status-partial">${fmt(statusCounts.partial || 0)} partial</span>
+              <span class="status-badge status-structural">${fmt(statusCounts.structural || 0)} structural</span>
+              <span class="status-badge status-unsolved">${fmt(statusCounts.unsolved || 0)} unsolved</span>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      elements.baselineGrid.querySelectorAll('[data-run-id]').forEach((node) => {
+        node.addEventListener('click', () => {
+          state.runId = node.dataset.runId;
+          render();
+        });
+      });
+    }
+
+    function renderRunInsights() {
+      const run = currentRun();
+      if (!run) {
+        elements.runInsightSubtitle.textContent = 'No run selected.';
+        elements.runFamilySummary.innerHTML = '<div class="empty-state">No run data.</div>';
+        elements.runWeakTags.innerHTML = '<div class="empty-state">No run data.</div>';
+        return;
+      }
+      elements.runInsightSubtitle.textContent = `${run.label} · ${titleCase(run.family)} · ${fmt(run.summary.task_coverage)} covered tasks`;
+
+      const familyEntries = Object.entries(run.family_summary || {}).sort((a, b) => {
+        const aIdx = DATA.primary_families.indexOf(a[0]);
+        const bIdx = DATA.primary_families.indexOf(b[0]);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
+      elements.runFamilySummary.innerHTML = familyEntries.length ? familyEntries.map(([family, stats]) => {
+        const covered = stats.covered || 0;
+        const solved = stats.solved || 0;
+        const partial = stats.partial || 0;
+        const structural = stats.structural || 0;
+        const unsolved = stats.unsolved || Math.max(0, covered - solved - partial - structural);
+        return `
+          <div class="family-row">
+            <div class="family-name"><span class="family-dot" style="background:${FAMILY_COLORS[family] || '#333'}"></span>${titleCase(family)}</div>
+            <div class="family-bar">
+              <div class="segment solved" style="width:${covered ? (solved / covered) * 100 : 0}%"></div>
+              <div class="segment partial" style="width:${covered ? (partial / covered) * 100 : 0}%"></div>
+              <div class="segment structural" style="width:${covered ? (structural / covered) * 100 : 0}%"></div>
+              <div class="segment unsolved" style="width:${covered ? (unsolved / covered) * 100 : 0}%"></div>
+            </div>
+            <div class="family-count">${fmt(covered)}</div>
+          </div>
+        `;
+      }).join('') : '<div class="empty-state">This run only covers a diagnostic slice without family breakdown.</div>';
+
+      const weakTags = Object.entries(run.tag_summary || {})
+        .map(([tag, stats]) => ({ tag, stats, unsolvedRate: (stats.unsolved || 0) / Math.max(1, stats.covered || 1) }))
+        .filter(({ stats }) => (stats.covered || 0) >= 3)
+        .sort((a, b) => b.unsolvedRate - a.unsolvedRate || (b.stats.covered || 0) - (a.stats.covered || 0))
+        .slice(0, 14);
+      elements.runWeakTags.innerHTML = weakTags.length ? weakTags.map(({ tag, stats, unsolvedRate }) => `
+        <div class="metric-chip"><strong>${fmt(stats.covered)}</strong> ${titleCase(tag)} · ${(unsolvedRate * 100).toFixed(0)}% weak</div>
+      `).join('') : '<div class="empty-state">Not enough coverage in this run to rank weak tags yet.</div>';
+    }
+
+    function groupTasksByFamily(tasks) {
+      const grouped = new Map();
+      tasks.forEach((task) => {
+        if (!grouped.has(task.primary_family)) grouped.set(task.primary_family, []);
+        grouped.get(task.primary_family).push(task);
+      });
+      const statusOrder = { solved: 0, partial: 1, structural: 2, unsolved: 3, uncovered: 4 };
+      grouped.forEach((familyTasks) => {
+        familyTasks.sort((a, b) => {
+          const aStatus = statusForTask(a.task_id).status;
+          const bStatus = statusForTask(b.task_id).status;
+          return (statusOrder[aStatus] ?? 9) - (statusOrder[bStatus] ?? 9)
+            || a.task_id.localeCompare(b.task_id);
+        });
+      });
+      return grouped;
+    }
+
+    function taskTooltip(task, runStatus) {
+      return `
+        <strong>${task.task_id}</strong><br>
+        ${titleCase(task.primary_family)}<br>
+        Status: ${titleCase(runStatus.status)}<br>
+        Tags: ${task.tags.slice(0, 5).map(titleCase).join(', ')}${task.tags.length > 5 ? '…' : ''}
+      `;
+    }
+
+    function bindTooltip(node, html) {
+      node.addEventListener('mouseenter', (event) => {
+        elements.tooltip.style.display = 'block';
+        elements.tooltip.innerHTML = html;
+        elements.tooltip.style.left = `${event.clientX + 14}px`;
+        elements.tooltip.style.top = `${event.clientY - 10}px`;
+      });
+      node.addEventListener('mousemove', (event) => {
+        elements.tooltip.style.left = `${event.clientX + 14}px`;
+        elements.tooltip.style.top = `${event.clientY - 10}px`;
+      });
+      node.addEventListener('mouseleave', () => {
+        elements.tooltip.style.display = 'none';
+      });
+    }
+
+    function renderTaskExplorer() {
+      const grouped = groupTasksByFamily(filteredTasks());
+      const html = [];
+      for (const family of DATA.primary_families) {
+        const tasks = grouped.get(family);
+        if (!tasks || !tasks.length) continue;
+        const counts = CounterFromTasks(tasks.map((task) => statusForTask(task.task_id).status));
+        html.push(`
+          <div class="task-group">
+            <div class="task-group-header">
+              <div class="task-group-title"><span class="family-dot" style="background:${FAMILY_COLORS[family] || '#333'}"></span>${titleCase(family)}</div>
+              <div class="status-stack">
+                <span class="status-badge status-solved">${fmt(counts.solved || 0)}</span>
+                <span class="status-badge status-partial">${fmt(counts.partial || 0)}</span>
+                <span class="status-badge status-structural">${fmt(counts.structural || 0)}</span>
+                <span class="status-badge status-unsolved">${fmt(counts.unsolved || 0)}</span>
+              </div>
+            </div>
+            <div class="task-grid">
+              ${tasks.map((task) => {
+                const runStatus = statusForTask(task.task_id);
+                const color = STATUS_COLORS[runStatus.status] || STATUS_COLORS.uncovered;
+                const active = task.task_id === state.selectedTaskId ? 'active' : '';
+                return `<button class="task-box ${active}" data-task-id="${task.task_id}" style="background:${color}" aria-label="${task.task_id}"></button>`;
+              }).join('')}
+            </div>
+          </div>
+        `);
+      }
+      elements.taskGroups.innerHTML = html.join('') || '<div class="empty-state">No tasks match the current filter.</div>';
+
+      elements.taskGroups.querySelectorAll('.task-box').forEach((node) => {
+        const taskId = node.dataset.taskId;
+        const task = taskRows().find((row) => row.task_id === taskId);
+        const runStatus = statusForTask(taskId);
+        bindTooltip(node, taskTooltip(task, runStatus));
+        node.addEventListener('click', () => {
+          state.selectedTaskId = taskId;
+          renderTaskDetail();
+          renderTaskExplorer();
+        });
+      });
+    }
+
+    function CounterFromTasks(statuses) {
+      return statuses.reduce((acc, status) => {
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    function metricChipsForTask(task) {
+      return [
+        `train ${fmt(task.num_train_examples)}`,
+        `test ${fmt(task.num_test_examples)}`,
+        `avg input area ${fmt(task.avg_input_area)}`,
+        `avg output area ${fmt(task.avg_output_area)}`,
+        `max side ${fmt(task.max_side)}`,
+        `input colors ${fmt(task.avg_input_colors)}`,
+        `output colors ${fmt(task.avg_output_colors)}`,
+        `input objects ${fmt(task.avg_input_objects)}`,
+        `output objects ${fmt(task.avg_output_objects)}`,
+        `fg ratio ${fmt(task.avg_fg_ratio)}`,
+      ].map((text) => `<span class="metric-chip">${text}</span>`).join('');
+    }
+
+    function runRowsForTask(taskId) {
+      return runsForSplit()
+        .map((run) => ({ run, detail: run.task_statuses[taskId] || null }))
+        .filter((row) => row.detail)
+        .sort((a, b) => {
+          const statusOrder = { solved: 0, partial: 1, structural: 2, unsolved: 3 };
+          return (statusOrder[a.detail.status] ?? 9) - (statusOrder[b.detail.status] ?? 9)
+            || a.run.family_order - b.run.family_order
+            || a.run.label.localeCompare(b.run.label);
+        });
+    }
+
+    function renderTaskDetail() {
+      const task = taskRows().find((row) => row.task_id === state.selectedTaskId);
+      if (!task) {
+        elements.detailPanel.classList.remove('visible');
+        elements.detailPanel.innerHTML = '';
+        return;
+      }
+
+      const selectedRun = currentRun();
+      const selectedRunDetail = selectedRun ? selectedRun.task_statuses[task.task_id] : null;
+      const runRows = runRowsForTask(task.task_id);
+
+      elements.detailPanel.classList.add('visible');
+      elements.detailPanel.innerHTML = `
+        <div class="section-header">
+          <div>
+            <div class="section-title">${task.task_id}</div>
+            <div class="section-subtitle">${titleCase(task.primary_family)} · ${state.split}</div>
+          </div>
+          <button class="metric-chip" id="closeDetail">Close task detail</button>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-card">
+            <div class="detail-title">Task taxonomy</div>
+            <div class="chip-wrap">${task.tags.map((tag) => `<span class="tag-chip">${titleCase(tag)}</span>`).join('')}</div>
+            <div class="chip-wrap">${metricChipsForTask(task)}</div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-title">Selected baseline</div>
+            ${selectedRun ? `
+              <div class="baseline-top">
+                <div class="baseline-name">${selectedRun.label}</div>
+                <span class="pill ${selectedRun.family}">${titleCase(selectedRun.family)}</span>
+              </div>
+              ${selectedRunDetail ? `
+                <div class="status-stack">
+                  <span class="status-badge status-${selectedRunDetail.status}">${titleCase(selectedRunDetail.status)}</span>
+                  <span class="metric-chip">records ${fmt(selectedRunDetail.records_total)}</span>
+                  <span class="metric-chip">correct ${fmt(selectedRunDetail.records_correct)}</span>
+                  <span class="metric-chip">exact ${fmt(selectedRunDetail.records_with_exact_rule)}</span>
+                  <span class="metric-chip">signal ${fmt(selectedRunDetail.records_with_train_signal)}</span>
+                  <span class="metric-chip">parsed ${fmt(selectedRunDetail.records_parsed)}</span>
+                  <span class="metric-chip">shape match ${fmt(selectedRunDetail.records_shape_match)}</span>
+                </div>
+                <div class="chip-wrap">${(selectedRunDetail.top_rule_names || []).map((name) => `<span class="tag-chip mono">${name}</span>`).join('') || '<span class="muted">No candidate rules recorded.</span>'}</div>
+                <div class="summary-card">
+                  <div class="detail-title">Per test record</div>
+                  ${(selectedRunDetail.record_details || []).map((record) => `
+                    <div class="summary-card">
+                      <div class="baseline-top">
+                        <div class="detail-title">Test ${fmt(record.test_index)}</div>
+                        <span class="status-badge status-${record.correct ? 'solved' : (record.exact_rule_candidate_count > 0 || record.best_train_rule_correct > 0 ? 'partial' : (record.parsed || record.shape_match ? 'structural' : 'unsolved'))}">
+                          ${record.correct ? 'Solved' : (record.exact_rule_candidate_count > 0 || record.best_train_rule_correct > 0 ? 'Signal' : (record.parsed || record.shape_match ? 'Structural' : 'None'))}
+                        </span>
+                      </div>
+                      <div class="chip-wrap">
+                        <span class="metric-chip">attempt shapes ${record.attempt_shapes ? record.attempt_shapes.map((s) => s ? s.join('×') : '—').join(' · ') : '—'}</span>
+                        <span class="metric-chip">best train fit ${fmt(record.best_train_rule_correct)}</span>
+                        ${record.search_stats ? `<span class="metric-chip">inner hits ${fmt(record.search_stats.num_inner_rule_hits)}</span>` : ''}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : '<div class="empty-state">This task was not covered by the selected run.</div>'}
+            ` : '<div class="empty-state">No run selected.</div>'}
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-title">All baselines that touched this task</div>
+          <table class="baseline-table">
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Status</th>
+                <th>Coverage</th>
+                <th>Signal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${runRows.map(({ run, detail }) => `
+                <tr>
+                  <td>
+                    <div>${run.label}</div>
+                    <div class="muted">${titleCase(run.family)}</div>
+                  </td>
+                  <td><span class="status-badge status-${detail.status}">${titleCase(detail.status)}</span></td>
+                  <td>${fmt(detail.records_correct)} / ${fmt(detail.records_total)} correct records</td>
+                  <td>
+                    exact ${fmt(detail.records_with_exact_rule)} ·
+                    train-fit ${fmt(detail.records_with_train_signal)} ·
+                    parsed ${fmt(detail.records_parsed)} ·
+                    shape ${fmt(detail.records_shape_match)}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('closeDetail').addEventListener('click', () => {
+        state.selectedTaskId = null;
+        renderTaskDetail();
+        renderTaskExplorer();
+      });
+    }
+
+    function render() {
+      ensureSelectedRun();
+      ensureSelectedTag();
+      renderHero();
+      renderSplitControls();
+      renderSplitOverview();
+      renderBaselineCards();
+      renderRunInsights();
+      renderTaskExplorer();
+      renderTaskDetail();
+    }
+
+    elements.splitSelect.addEventListener('change', (event) => {
+      state.split = event.target.value;
+      state.selectedTaskId = null;
+      ensureSelectedRun();
+      render();
+    });
+    elements.runSelect.addEventListener('change', (event) => {
+      state.runId = event.target.value;
+      render();
+    });
+    elements.taskFilter.addEventListener('change', (event) => {
+      state.taskFilter = event.target.value;
+      render();
+    });
+    elements.tagSelect.addEventListener('change', (event) => {
+      state.tag = event.target.value;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
