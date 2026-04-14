@@ -1,15 +1,24 @@
-# ARC Visualizer Source
+# ARC Visualizer And Research Code
 
-This folder contains the source-side visualizer and taxonomy/dashboard builder code.
+This folder is the pushed source-side deliverable for the ARC visualizer work.
 
-It is intended to be pushed without large generated JSON artifacts.
+It now includes:
 
-## Included
+- the local visualizer app and templates
+- the taxonomy and dashboard builders
+- the full research Python script set used during the baseline analysis
+
+## Included Source Files
 
 - `app.py`
 - `scan_concepts.py`
 - `tag_arc_tasks.py`
 - `build_task_dashboard.py`
+- `deterministic_arc_solver.py`
+- `object_program_arc_solver.py`
+- `compositional_program_search_solver.py`
+- `score_submission_by_taxonomy.py`
+- `summarize_kaggle_run.py`
 - `templates/`
 
 ## What Stays Local
@@ -20,15 +29,14 @@ Generated outputs such as:
 - dashboard data JSON / JS
 - local run artifacts
 
-should stay local or be shared separately as a zip bundle or direct message payload.
+stay local or should be shared separately as a zip bundle / direct message payload.
 
-## Typical Flow
+## Purpose
 
-1. Run `tag_arc_tasks.py` to build the task taxonomy.
-2. Run `build_task_dashboard.py` to generate dashboard-ready data locally.
-3. Use the templates and app code here to serve or adapt the visualizer.
+This folder is meant to give a reviewer the actual source code behind:
 
-## Notes
+- the task taxonomy split work
+- the dashboard generation
+- the baseline solver research tracks
 
-- `templates/task_dashboard_source.html` is the richer local dashboard source template.
-- The lightweight public Pages site is in `docs/`, but the generated publish JSON is intentionally not the main source deliverable here.
+without pushing the heavier generated analysis payloads.
